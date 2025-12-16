@@ -33,13 +33,13 @@ export default function MapPage() {
 
   const supabase = createClient()
 
-  // Real-time location tracking
+  // Real-time location tracking with improved accuracy handling
   useEffect(() => {
     let watchId: number | null = null
 
     if (navigator.geolocation) {
-      // Watch position continuously for real-time updates
-      watchId = navigator.geolocation.watchPosition(
+      // First, get a quick position (even if not super accurate)
+      navigator.geolocation.getCurrentPosition(
         (position) => {
           setUserLocation({
             lat: position.coords.latitude,
@@ -47,16 +47,38 @@ export default function MapPage() {
           })
         },
         (error) => {
-          console.error('Error getting location:', error)
-          // Default to center of India if location access denied
-          setUserLocation({ lat: 20.5937, lng: 78.9629 })
+          console.error('Error getting initial location:', error)
+        },
+        {
+          enableHighAccuracy: false, // Quick, approximate position
+          timeout: 10000,
+          maximumAge: 300000, // Accept cached position up to 5 minutes old
+        }
+      )
+
+      // Then start continuous tracking with high accuracy
+      watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          // Update location as GPS gets more accurate
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          })
+        },
+        (error) => {
+          console.error('Error watching location:', error)
+          // Only set default if we haven't gotten any position yet
+          setUserLocation((current) => current || { lat: 20.5937, lng: 78.9629 })
         },
         {
           enableHighAccuracy: true, // Use GPS for accurate tracking
-          maximumAge: 0, // Don't use cached position
-          timeout: 5000, // Wait up to 5 seconds for position
+          timeout: 10000, // Wait up to 10 seconds for position
+          maximumAge: 0, // Always get fresh position for updates
         }
       )
+    } else {
+      // Geolocation not supported, use default
+      setUserLocation({ lat: 20.5937, lng: 78.9629 })
     }
 
     // Cleanup: stop watching location when component unmounts
