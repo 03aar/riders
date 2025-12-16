@@ -27,6 +27,12 @@ A real-time community app for riders to share alerts, find spots, and stay safe 
 - View your submitted alerts and spots
 - Edit profile information
 
+### 📍 Real-time Location Tracking
+- Continuous GPS tracking while riding
+- Live location updates on the map
+- Pulsing blue marker shows your position
+- Automatically centers map on first load
+
 ### 📱 Mobile-First Design
 - Responsive layout that works on all devices
 - Bottom navigation bar
@@ -115,10 +121,11 @@ riders/
 
 ### Map Component
 - Interactive Leaflet map with OpenStreetMap tiles
+- Real-time GPS location tracking (continuous updates)
+- Pulsing marker shows your live position
 - Custom markers for alerts and spots
-- User location tracking
 - Click to add new markers
-- Real-time marker updates
+- Real-time marker updates via Supabase
 
 ### Alert System
 - Three types: Police, Accident, Roadblock

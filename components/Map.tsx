@@ -96,22 +96,42 @@ function MapClickHandler({
   return null
 }
 
-// Component to center map on user location
+// Component to show user's real-time location
 function LocationMarker({ position }: { position: { lat: number; lng: number } | null }) {
   const map = useMap()
+  const [hasInitialized, setHasInitialized] = useState(false)
 
   useEffect(() => {
-    if (position) {
-      map.flyTo([position.lat, position.lng], 13)
+    // Only center map on first position, not on every update
+    if (position && !hasInitialized) {
+      map.flyTo([position.lat, position.lng], 15)
+      setHasInitialized(true)
     }
-  }, [position, map])
+  }, [position, map, hasInitialized])
 
   if (!position) return null
 
+  // Pulsing marker with animation to show real-time tracking
   const userIcon = L.divIcon({
     className: 'user-location-marker',
     html: `
-      <div style="
+      <style>
+        @keyframes pulse {
+          0% {
+            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+          }
+          70% {
+            box-shadow: 0 0 0 20px rgba(59, 130, 246, 0);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+          }
+        }
+        .pulse-dot {
+          animation: pulse 2s infinite;
+        }
+      </style>
+      <div class="pulse-dot" style="
         background-color: #3b82f6;
         width: 20px;
         height: 20px;
@@ -126,7 +146,12 @@ function LocationMarker({ position }: { position: { lat: number; lng: number } |
 
   return (
     <Marker position={[position.lat, position.lng]} icon={userIcon}>
-      <Popup>You are here</Popup>
+      <Popup>
+        <div className="text-center">
+          <div className="font-bold">You are here</div>
+          <div className="text-xs text-gray-600 mt-1">Live tracking enabled</div>
+        </div>
+      </Popup>
     </Marker>
   )
 }

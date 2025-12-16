@@ -33,10 +33,13 @@ export default function MapPage() {
 
   const supabase = createClient()
 
-  // Get user location
+  // Real-time location tracking
   useEffect(() => {
+    let watchId: number | null = null
+
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
+      // Watch position continuously for real-time updates
+      watchId = navigator.geolocation.watchPosition(
         (position) => {
           setUserLocation({
             lat: position.coords.latitude,
@@ -47,8 +50,20 @@ export default function MapPage() {
           console.error('Error getting location:', error)
           // Default to center of India if location access denied
           setUserLocation({ lat: 20.5937, lng: 78.9629 })
+        },
+        {
+          enableHighAccuracy: true, // Use GPS for accurate tracking
+          maximumAge: 0, // Don't use cached position
+          timeout: 5000, // Wait up to 5 seconds for position
         }
       )
+    }
+
+    // Cleanup: stop watching location when component unmounts
+    return () => {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId)
+      }
     }
   }, [])
 

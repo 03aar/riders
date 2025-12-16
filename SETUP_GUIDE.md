@@ -114,6 +114,8 @@ npm run dev
 
 The app will be available at: [http://localhost:3000](http://localhost:3000)
 
+**Important**: When you first open the app, your browser will ask for location permissions. **Allow** this to enable real-time GPS tracking. The app uses continuous location tracking to show your position as you ride.
+
 ### Build for Production
 
 ```bash
@@ -183,6 +185,12 @@ Vercel is the easiest way to deploy Next.js apps.
 - Email/password signup and login
 - User profiles with bike type and city
 - Secure session management
+
+### ✅ Real-time GPS Tracking
+- Continuous location updates as you ride
+- Pulsing blue marker shows your live position
+- High accuracy GPS tracking
+- Automatically stops when you leave the app
 
 ### ✅ Real-time Alerts
 - Drop pins for police checkpoints, accidents, roadblocks
