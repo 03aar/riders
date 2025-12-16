@@ -5,23 +5,13 @@
 
 import { signup } from '../actions'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 
 export default function SignupPage() {
-  const [error, setError] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  const errorFromUrl = searchParams.get('error')
   const [isLoading, setIsLoading] = useState(false)
-
-  async function handleSubmit(formData: FormData) {
-    setIsLoading(true)
-    setError(null)
-
-    const result = await signup(formData)
-
-    if (result?.error) {
-      setError(result.error)
-      setIsLoading(false)
-    }
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-4">
@@ -38,14 +28,14 @@ export default function SignupPage() {
         </div>
 
         {/* Error message */}
-        {error && (
+        {errorFromUrl && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
-            {error}
+            {errorFromUrl}
           </div>
         )}
 
         {/* Signup form */}
-        <form action={handleSubmit} className="space-y-4">
+        <form action={signup} className="space-y-4">
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
               Username

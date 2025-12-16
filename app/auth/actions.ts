@@ -19,7 +19,8 @@ export async function login(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword(data)
 
   if (error) {
-    return { error: error.message }
+    // Redirect to login with error message in URL
+    redirect(`/auth/login?error=${encodeURIComponent(error.message)}`)
   }
 
   revalidatePath('/', 'layout')
@@ -50,7 +51,8 @@ export async function signup(formData: FormData) {
   })
 
   if (authError) {
-    return { error: authError.message }
+    // Redirect to signup with error message in URL
+    redirect(`/auth/signup?error=${encodeURIComponent(authError.message)}`)
   }
 
   // The profile will be created automatically via the database trigger
