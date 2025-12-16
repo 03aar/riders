@@ -26,14 +26,35 @@ export default function ProfilePage() {
 
       if (user) {
         // Fetch profile
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single()
 
-        setProfile(profileData)
-        setEditedProfile(profileData || {})
+        // If profile doesn't exist, create it
+        if (!profileData && profileError) {
+          const username = user.user_metadata?.username || user.email?.split('@')[0] || 'rider'
+          const newProfile = {
+            id: user.id,
+            email: user.email!,
+            username: username,
+            bike_type: user.user_metadata?.bike_type || null,
+            city: user.user_metadata?.city || null,
+          }
+
+          const { data: createdProfile } = await (supabase as any)
+            .from('profiles')
+            .insert(newProfile)
+            .select()
+            .single()
+
+          setProfile(createdProfile || newProfile)
+          setEditedProfile(createdProfile || newProfile)
+        } else {
+          setProfile(profileData)
+          setEditedProfile(profileData || {})
+        }
 
         // Fetch user's alerts
         const { data: alertsData } = await supabase
