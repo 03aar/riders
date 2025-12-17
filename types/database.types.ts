@@ -47,30 +47,42 @@ export interface Database {
         Row: {
           id: string
           user_id: string
-          type: 'cop' | 'accident' | 'roadblock'
+          type: 'cop' | 'accident' | 'roadblock' | 'pothole' | 'traffic' | 'speedtrap' | 'flooding'
           description: string
           latitude: number
           longitude: number
+          upvotes: number
+          downvotes: number
+          voted_by: string[]
+          posted_by_username: string | null
           created_at: string
           expires_at: string
         }
         Insert: {
           id?: string
           user_id: string
-          type: 'cop' | 'accident' | 'roadblock'
+          type: 'cop' | 'accident' | 'roadblock' | 'pothole' | 'traffic' | 'speedtrap' | 'flooding'
           description: string
           latitude: number
           longitude: number
+          upvotes?: number
+          downvotes?: number
+          voted_by?: string[]
+          posted_by_username?: string | null
           created_at?: string
           expires_at?: string
         }
         Update: {
           id?: string
           user_id?: string
-          type?: 'cop' | 'accident' | 'roadblock'
+          type?: 'cop' | 'accident' | 'roadblock' | 'pothole' | 'traffic' | 'speedtrap' | 'flooding'
           description?: string
           latitude?: number
           longitude?: number
+          upvotes?: number
+          downvotes?: number
+          voted_by?: string[]
+          posted_by_username?: string | null
           created_at?: string
           expires_at?: string
         }
@@ -158,5 +170,5 @@ export type Alert = Database['public']['Tables']['alerts']['Row']
 export type Spot = Database['public']['Tables']['spots']['Row']
 export type Review = Database['public']['Tables']['reviews']['Row']
 
-export type AlertType = 'cop' | 'accident' | 'roadblock'
+export type AlertType = 'cop' | 'accident' | 'roadblock' | 'pothole' | 'traffic' | 'speedtrap' | 'flooding'
 export type SpotType = 'water' | 'rest' | 'repair'

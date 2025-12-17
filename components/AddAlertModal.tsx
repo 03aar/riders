@@ -1,29 +1,57 @@
 'use client'
 
-// Modal for adding new alerts (cop, accident, roadblock)
-// Quick action with minimal form fields
+// Modal for adding new alerts with all 7 types
+// Enhanced UI with character limit and success feedback
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { AlertType } from '@/types/database.types'
+import Toast from './Toast'
 
 interface AddAlertModalProps {
   location: { lat: number; lng: number }
   onClose: () => void
+  onSuccess?: () => void
 }
 
-export default function AddAlertModal({ location, onClose }: AddAlertModalProps) {
+export default function AddAlertModal({ location, onClose, onSuccess }: AddAlertModalProps) {
   const [type, setType] = useState<AlertType>('cop')
   const [description, setDescription] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [username, setUsername] = useState<string>('')
+  const [showToast, setShowToast] = useState(false)
 
   const supabase = createClient()
+  const maxDescriptionLength = 50
+
+  // Get user's username
+  useEffect(() => {
+    async function getUsername() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .single()
+
+        if (profile) {
+          setUsername(profile.username)
+        }
+      }
+    }
+    getUsername()
+  }, [])
 
   const alertTypes = [
-    { value: 'cop', label: 'Police Checkpoint', icon: '🚓', color: 'bg-red-500' },
+    { value: 'cop', label: 'Police', icon: '🚓', color: 'bg-red-500' },
     { value: 'accident', label: 'Accident', icon: '⚠️', color: 'bg-orange-500' },
-    { value: 'roadblock', label: 'Road Block', icon: '🚧', color: 'bg-purple-500' },
+    { value: 'roadblock', label: 'Roadblock', icon: '🚧', color: 'bg-purple-500' },
+    { value: 'pothole', label: 'Pothole', icon: '🕳️', color: 'bg-yellow-600' },
+    { value: 'traffic', label: 'Traffic', icon: '🚦', color: 'bg-pink-500' },
+    { value: 'speedtrap', label: 'Speed Trap', icon: '📷', color: 'bg-indigo-500' },
+    { value: 'flooding', label: 'Flooding', icon: '💧', color: 'bg-cyan-500' },
   ]
 
   async function handleSubmit(e: React.FormEvent) {
@@ -42,14 +70,29 @@ export default function AddAlertModal({ location, onClose }: AddAlertModalProps)
       const { error: insertError } = await (supabase as any).from('alerts').insert({
         user_id: user.id,
         type,
-        description,
+        description: description.trim(),
         latitude: location.lat,
         longitude: location.lng,
+        posted_by_username: username,
+        upvotes: 0,
+        downvotes: 0,
+        voted_by: [],
       })
 
       if (insertError) throw insertError
 
-      onClose()
+      // Show success toast
+      setShowToast(true)
+
+      // Call success callback if provided
+      if (onSuccess) {
+        onSuccess()
+      }
+
+      // Close modal after a brief delay to show toast
+      setTimeout(() => {
+        onClose()
+      }, 1500)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add alert')
     } finally {
@@ -82,24 +125,24 @@ export default function AddAlertModal({ location, onClose }: AddAlertModalProps)
           {/* Alert type selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">
-              Alert Type
+              What's happening?
             </label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-2">
               {alertTypes.map((alertType) => (
                 <button
                   key={alertType.value}
                   type="button"
                   onClick={() => setType(alertType.value as AlertType)}
                   className={`
-                    p-4 rounded-lg border-2 transition-all
+                    p-3 rounded-lg border-2 transition-all flex flex-col items-center
                     ${type === alertType.value
-                      ? `${alertType.color} text-white border-transparent`
+                      ? `${alertType.color} text-white border-transparent shadow-lg scale-105`
                       : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
                     }
                   `}
                 >
                   <div className="text-2xl mb-1">{alertType.icon}</div>
-                  <div className="text-xs font-medium">{alertType.label}</div>
+                  <div className="text-xs font-medium text-center leading-tight">{alertType.label}</div>
                 </button>
               ))}
             </div>
@@ -107,17 +150,26 @@ export default function AddAlertModal({ location, onClose }: AddAlertModalProps)
 
           {/* Description */}
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-              Description
-            </label>
+            <div className="flex justify-between items-center mb-2">
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                Description (Optional)
+              </label>
+              <span className={`text-xs ${description.length > maxDescriptionLength ? 'text-red-500' : 'text-gray-500'}`}>
+                {description.length}/{maxDescriptionLength}
+              </span>
+            </div>
             <textarea
               id="description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              required
-              rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="E.g., Police checking licenses near the bridge"
+              onChange={(e) => {
+                if (e.target.value.length <= maxDescriptionLength) {
+                  setDescription(e.target.value)
+                }
+              }}
+              rows={2}
+              maxLength={maxDescriptionLength}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              placeholder="Brief details (optional)"
             />
           </div>
 
@@ -132,16 +184,25 @@ export default function AddAlertModal({ location, onClose }: AddAlertModalProps)
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
           >
-            {isSubmitting ? 'Adding Alert...' : 'Add Alert'}
+            {isSubmitting ? 'Posting Alert...' : 'Post Alert'}
           </button>
 
           <p className="text-xs text-gray-500 text-center">
-            Alert will auto-delete after 2 hours
+            Alert expires in 2 hours • Other riders can vote on accuracy
           </p>
         </form>
       </div>
+
+      {/* Success toast */}
+      {showToast && (
+        <Toast
+          message="Alert posted successfully!"
+          type="success"
+          onClose={() => setShowToast(false)}
+        />
+      )}
     </div>
   )
 }

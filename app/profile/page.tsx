@@ -9,16 +9,36 @@ import { Profile, Alert, Spot } from '@/types/database.types'
 import { logout } from '@/app/auth/actions'
 import BottomNav from '@/components/BottomNav'
 import { formatDistanceToNow } from 'date-fns'
+import { calculateDistance, formatDistance } from '@/lib/voting'
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [userAlerts, setUserAlerts] = useState<Alert[]>([])
   const [userSpots, setUserSpots] = useState<Spot[]>([])
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [editedProfile, setEditedProfile] = useState<Partial<Profile>>({})
 
   const supabase = createClient()
+
+  // Get user's current location
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          })
+        },
+        (error) => {
+          console.error('Error getting location:', error)
+        },
+        { enableHighAccuracy: true }
+      )
+    }
+  }, [])
 
   useEffect(() => {
     async function fetchData() {
@@ -266,31 +286,94 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {userAlerts.map((alert) => (
-                  <div key={alert.id} className="bg-white rounded-xl shadow-sm p-4">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium capitalize">
-                            {alert.type}
+                {userAlerts.map((alert) => {
+                  const alertTypeConfig = {
+                    cop: { label: 'Police', icon: '🚓', bgColor: 'bg-red-100', textColor: 'text-red-700' },
+                    accident: { label: 'Accident', icon: '⚠️', bgColor: 'bg-orange-100', textColor: 'text-orange-700' },
+                    roadblock: { label: 'Roadblock', icon: '🚧', bgColor: 'bg-purple-100', textColor: 'text-purple-700' },
+                    pothole: { label: 'Pothole', icon: '🕳️', bgColor: 'bg-yellow-100', textColor: 'text-yellow-700' },
+                    traffic: { label: 'Traffic', icon: '🚦', bgColor: 'bg-pink-100', textColor: 'text-pink-700' },
+                    speedtrap: { label: 'Speed Trap', icon: '📷', bgColor: 'bg-indigo-100', textColor: 'text-indigo-700' },
+                    flooding: { label: 'Flooding', icon: '💧', bgColor: 'bg-cyan-100', textColor: 'text-cyan-700' },
+                  }
+                  const config = alertTypeConfig[alert.type]
+                  const distance = userLocation
+                    ? calculateDistance(userLocation.lat, userLocation.lng, alert.latitude, alert.longitude)
+                    : null
+                  const netScore = alert.upvotes - alert.downvotes
+
+                  return (
+                    <div key={alert.id} className="bg-white rounded-xl shadow-sm p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-2xl">{config.icon}</span>
+                          <div>
+                            <span className={`px-3 py-1 ${config.bgColor} ${config.textColor} rounded-full text-xs font-medium`}>
+                              {config.label}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteAlert(alert.id)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {alert.description && (
+                        <p className="text-gray-700 text-sm mb-3">{alert.description}</p>
+                      )}
+
+                      {/* Stats row */}
+                      <div className="flex items-center justify-between text-xs text-gray-600 border-t border-gray-100 pt-3">
+                        <div className="flex items-center space-x-3">
+                          <span className="flex items-center space-x-1">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>{formatDistanceToNow(new Date(alert.created_at), { addSuffix: true })}</span>
                           </span>
-                          <span className="text-xs text-gray-500">
-                            {formatDistanceToNow(new Date(alert.created_at), { addSuffix: true })}
+                          {distance !== null && (
+                            <span className="flex items-center space-x-1">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              </svg>
+                              <span>{formatDistance(distance)}</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Voting stats */}
+                        <div className="flex items-center space-x-2">
+                          <span className="flex items-center space-x-1 text-green-600">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 4l-8 8h5v8h6v-8h5z" />
+                            </svg>
+                            <span className="font-medium">{alert.upvotes}</span>
+                          </span>
+                          <span className="flex items-center space-x-1 text-red-600">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 20l8-8h-5V4H9v8H4z" />
+                            </svg>
+                            <span className="font-medium">{alert.downvotes}</span>
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full font-medium ${
+                            netScore > 0
+                              ? 'bg-green-100 text-green-700'
+                              : netScore < 0
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {netScore > 0 ? '+' : ''}{netScore}
                           </span>
                         </div>
-                        <p className="text-gray-700 text-sm">{alert.description}</p>
                       </div>
-                      <button
-                        onClick={() => handleDeleteAlert(alert.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>

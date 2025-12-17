@@ -6,9 +6,10 @@
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
-import { Alert, Spot, Profile } from '@/types/database.types'
+import { Alert, Spot, Profile, AlertType } from '@/types/database.types'
 import AddAlertModal from '@/components/AddAlertModal'
 import AddSpotModal from '@/components/AddSpotModal'
+import AlertFilter from '@/components/AlertFilter'
 import BottomNav from '@/components/BottomNav'
 
 // Dynamically import Map component (client-side only)
@@ -29,7 +30,11 @@ export default function MapPage() {
   const [showAddSpot, setShowAddSpot] = useState(false)
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [enabledAlertTypes, setEnabledAlertTypes] = useState<AlertType[]>([
+    'cop', 'accident', 'roadblock', 'pothole', 'traffic', 'speedtrap', 'flooding'
+  ])
 
   const supabase = createClient()
 
@@ -94,6 +99,7 @@ export default function MapPage() {
     async function fetchProfile() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
+        setUserId(user.id)
         const { data } = await supabase
           .from('profiles')
           .select('*')
@@ -137,6 +143,10 @@ export default function MapPage() {
         (payload) => {
           if (payload.eventType === 'INSERT') {
             setAlerts((current) => [payload.new as Alert, ...current])
+          } else if (payload.eventType === 'UPDATE') {
+            setAlerts((current) =>
+              current.map((alert) => (alert.id === payload.new.id ? (payload.new as Alert) : alert))
+            )
           } else if (payload.eventType === 'DELETE') {
             setAlerts((current) => current.filter((alert) => alert.id !== payload.old.id))
           }
@@ -180,6 +190,17 @@ export default function MapPage() {
     setShowAddSpot(true)
   }
 
+  const handleAlertVoted = async () => {
+    // Refetch alerts to get updated vote counts
+    const { data: alertsData } = await supabase
+      .from('alerts')
+      .select('*')
+      .gte('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+
+    setAlerts(alertsData || [])
+  }
+
   if (isLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-100">
@@ -188,15 +209,23 @@ export default function MapPage() {
     )
   }
 
+  // Filter alerts based on enabled types
+  const filteredAlerts = alerts.filter(alert => enabledAlertTypes.includes(alert.type))
+
   return (
     <div className="h-screen flex flex-col">
       {/* Map container */}
       <div className="flex-1 relative">
         <Map
-          alerts={alerts}
+          alerts={filteredAlerts}
           spots={spots}
           userLocation={userLocation}
+          userId={userId}
+          onAlertVoted={handleAlertVoted}
         />
+
+        {/* Alert filter */}
+        <AlertFilter onFilterChange={setEnabledAlertTypes} />
 
         {/* Floating action button to add alert */}
         <button
@@ -233,8 +262,10 @@ export default function MapPage() {
         <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-4 z-10">
           <div className="flex items-center space-x-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-red-500">{alerts.length}</div>
-              <div className="text-xs text-gray-600">Active Alerts</div>
+              <div className="text-2xl font-bold text-red-500">{filteredAlerts.length}</div>
+              <div className="text-xs text-gray-600">
+                {filteredAlerts.length === alerts.length ? 'Active Alerts' : `Alerts (${alerts.length} total)`}
+              </div>
             </div>
             <div className="w-px h-8 bg-gray-300"></div>
             <div className="text-center">
@@ -250,6 +281,7 @@ export default function MapPage() {
         <AddAlertModal
           location={selectedLocation}
           onClose={() => setShowAddAlert(false)}
+          onSuccess={handleAlertVoted}
         />
       )}
 

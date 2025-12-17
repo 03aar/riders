@@ -9,6 +9,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Alert, Spot, AlertType, SpotType } from '@/types/database.types'
 import { formatDistanceToNow } from 'date-fns'
+import AlertPopup from './AlertPopup'
 
 // Fix Leaflet default marker icons in Next.js
 import icon from 'leaflet/dist/images/marker-icon.png'
@@ -57,6 +58,10 @@ const alertIcons = {
   cop: createCustomIcon('#ef4444', '🚓'),
   accident: createCustomIcon('#f97316', '⚠️'),
   roadblock: createCustomIcon('#8b5cf6', '🚧'),
+  pothole: createCustomIcon('#ca8a04', '🕳️'),
+  traffic: createCustomIcon('#ec4899', '🚦'),
+  speedtrap: createCustomIcon('#6366f1', '📷'),
+  flooding: createCustomIcon('#06b6d4', '💧'),
 }
 
 const spotIcons = {
@@ -72,6 +77,8 @@ interface MapProps {
   onAddSpot?: (lat: number, lng: number) => void
   userLocation?: { lat: number; lng: number } | null
   addingMarkerType?: 'alert' | 'spot' | null
+  userId?: string | null
+  onAlertVoted?: () => void
 }
 
 // Component to handle map clicks for adding markers
@@ -163,8 +170,11 @@ export default function Map({
   onAddSpot,
   userLocation,
   addingMarkerType,
+  userId,
+  onAlertVoted,
 }: MapProps) {
   const [isMounted, setIsMounted] = useState(false)
+  const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
 
   // Only render map on client side
   useEffect(() => {
@@ -184,12 +194,13 @@ export default function Map({
     : [20.5937, 78.9629] // Center of India as default
 
   return (
-    <MapContainer
-      center={defaultCenter}
-      zoom={13}
-      style={{ height: '100%', width: '100%' }}
-      className="z-0"
-    >
+    <>
+      <MapContainer
+        center={defaultCenter}
+        zoom={13}
+        style={{ height: '100%', width: '100%' }}
+        className="z-0"
+      >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -211,13 +222,18 @@ export default function Map({
           key={alert.id}
           position={[alert.latitude, alert.longitude]}
           icon={alertIcons[alert.type]}
+          eventHandlers={{
+            click: () => {
+              setSelectedAlert(alert)
+            },
+          }}
         >
           <Popup>
             <div className="p-2">
               <h3 className="font-bold text-lg capitalize">{alert.type}</h3>
               <p className="text-gray-700 mt-1">{alert.description}</p>
               <p className="text-xs text-gray-500 mt-2">
-                {formatDistanceToNow(new Date(alert.created_at), { addSuffix: true })}
+                Click for details and voting
               </p>
             </div>
           </Popup>
@@ -246,5 +262,22 @@ export default function Map({
         </Marker>
       ))}
     </MapContainer>
+
+      {/* Alert popup modal */}
+      {selectedAlert && (
+        <AlertPopup
+          alert={selectedAlert}
+          userId={userId || null}
+          userLocation={userLocation}
+          onClose={() => setSelectedAlert(null)}
+          onVoteSuccess={() => {
+            setSelectedAlert(null)
+            if (onAlertVoted) {
+              onAlertVoted()
+            }
+          }}
+        />
+      )}
+    </>
   )
 }
