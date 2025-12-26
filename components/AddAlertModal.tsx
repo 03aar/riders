@@ -30,7 +30,7 @@ export default function AddAlertModal({ location, onClose, onSuccess }: AddAlert
     async function getUsername() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        const { data: profile } = await supabase
+        const { data: profile } = await (supabase as any)
           .from('profiles')
           .select('username')
           .eq('id', user.id)

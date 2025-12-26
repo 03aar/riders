@@ -12,7 +12,7 @@ export async function handleVote(
 
   try {
     // Get the current alert data
-    const { data: alert, error: fetchError } = await supabase
+    const { data: alert, error: fetchError } = await (supabase as any)
       .from('alerts')
       .select('*')
       .eq('id', alertId)

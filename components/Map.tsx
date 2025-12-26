@@ -268,7 +268,7 @@ export default function Map({
         <AlertPopup
           alert={selectedAlert}
           userId={userId || null}
-          userLocation={userLocation}
+          userLocation={userLocation || null}
           onClose={() => setSelectedAlert(null)}
           onVoteSuccess={() => {
             setSelectedAlert(null)
